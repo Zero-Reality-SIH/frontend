@@ -16,7 +16,7 @@ export default function Navbar({ user, onLogout, selectedPatient, onPatientSelec
     }
   };
   return (
-    <nav className="bg-blue-600 border-b border-blue-700 px-6 py-4 shadow-sm">
+    <nav className="bg-blue-600 border-b border-blue-700 px-6 py-4 shadow-sm ">
       <div className="flex justify-between items-center">
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-3">

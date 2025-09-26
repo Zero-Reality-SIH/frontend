@@ -64,21 +64,46 @@ export default function CodeSearch({ user, selectedPatient, onAddToHistory }) {
   const [viewMode, setViewMode] = useState("grid"); // grid or visual
   const searchRef = useRef(null);
 
-  const handleSearch = (e) => {
+  const handleSearch = async (e) => {
     const value = e.target.value;
     setQuery(value);
     
     if (value.length > 0) {
-      const filtered = mockCodes.filter(
-        (code) =>
-          code.namasteTerm.toLowerCase().includes(value.toLowerCase()) ||
-          code.tm2Term.toLowerCase().includes(value.toLowerCase()) ||
-          code.biomedTerm.toLowerCase().includes(value.toLowerCase()) ||
-          code.namaste.toLowerCase().includes(value.toLowerCase()) ||
-          code.tm2.toLowerCase().includes(value.toLowerCase()) ||
-          code.biomed.toLowerCase().includes(value.toLowerCase())
-      );
-      setResults(filtered);
+      try {
+        // Use the same autocomplete API but with higher limit for full search results
+        const response = await fetch(`http://localhost:3001/autocomplete?q=${encodeURIComponent(value)}&limit=50`);
+        const data = await response.json();
+        
+        if (data.success && data.suggestions) {
+          // Transform API response to match expected table format
+          const transformedResults = data.suggestions.map((item, index) => ({
+            id: item.id || `result-${index}`,
+            namaste: item.code || '',
+            namasteTerm: item.term || '',
+            tm2: item.code || '', // You can map this differently if you have TM2 data
+            tm2Term: item.englishName || item.term || '',
+            biomed: item.code || '', // You can map this differently if you have ICD-11 data
+            biomedTerm: item.englishName || '',
+            version: "v2.1",
+            consent: "consent-given",
+            confidence: 95,
+            lastUpdated: new Date().toISOString().split('T')[0],
+            usageCount: Math.floor(Math.random() * 1000) + 100
+          }));
+          
+          // Remove duplicates based on id and term
+          const uniqueResults = transformedResults.filter((item, index, self) => 
+            index === self.findIndex(t => t.id === item.id && t.namasteTerm === item.namasteTerm)
+          );
+          
+          setResults(uniqueResults);
+        } else {
+          setResults([]);
+        }
+      } catch (error) {
+        console.error('Error fetching search results:', error);
+        setResults([]);
+      }
     } else {
       setResults([]);
     }
@@ -406,8 +431,8 @@ export default function CodeSearch({ user, selectedPatient, onAddToHistory }) {
       )}
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-blue-50 to-indigo-100 py-20">
-        <div className="max-w-7xl mx-auto px-4">
+      <section className="bg-gradient-to-br from-blue-50 to-indigo-100 py-20 w-full">
+        <div className="w-full px-4">
           <motion.div 
             initial={{ opacity: 0, y: -20 }} 
             animate={{ opacity: 1, y: 0 }} 
@@ -443,7 +468,7 @@ export default function CodeSearch({ user, selectedPatient, onAddToHistory }) {
               <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">
                 Try Quick Search
               </h3>
-              <SearchBar query={query} onChange={handleSearch} inputRef={searchRef} />
+              <SearchBar query={query} onChange={handleSearch} inputRef={searchRef} hasResults={results.length > 0} />
               
               {/* Quick Search Pills */}
               <div className="mt-4 flex flex-wrap justify-center gap-2">

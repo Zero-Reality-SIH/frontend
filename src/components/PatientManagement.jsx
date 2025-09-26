@@ -3,8 +3,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FiX, FiPlus, FiTrash2, FiUser, FiCalendar, FiPhone, FiMail, FiEdit3 } from 'react-icons/fi';
 
 export default function PatientManagement({ isOpen, onClose, user, onPatientSelect }) {
-  // Start with empty patient list - new users should add their own patients
-  const [patients, setPatients] = useState([]);
+  // Load patients from localStorage for the current doctor
+  const [patients, setPatients] = useState(() => {
+    if (!user || !user.email) return [];
+    const savedPatients = localStorage.getItem(`bridgehealth_patients_${user.email}`);
+    return savedPatients ? JSON.parse(savedPatients) : [];
+  });
   
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingPatient, setEditingPatient] = useState(null);
@@ -85,6 +89,13 @@ export default function PatientManagement({ isOpen, onClose, user, onPatientSele
     return Object.keys(errors).length === 0;
   };
 
+  const savePatients = (newPatients) => {
+    setPatients(newPatients);
+    if (user && user.email) {
+      localStorage.setItem(`bridgehealth_patients_${user.email}`, JSON.stringify(newPatients));
+    }
+  };
+
   const handleAddPatient = (e) => {
     e.preventDefault();
     
@@ -99,7 +110,8 @@ export default function PatientManagement({ isOpen, onClose, user, onPatientSele
       dateAdded: new Date().toISOString().split('T')[0],
       lastVisit: new Date().toISOString().split('T')[0]
     };
-    setPatients(prev => [...prev, patient]);
+    const newPatients = [...patients, patient];
+    savePatients(newPatients);
     setNewPatient({ name: '', age: '', phone: '', email: '' });
     setValidationErrors({});
     setShowAddModal(false);
@@ -107,7 +119,8 @@ export default function PatientManagement({ isOpen, onClose, user, onPatientSele
 
   const handleRemovePatient = (patientId) => {
     if (window.confirm('Are you sure you want to remove this patient?')) {
-      setPatients(prev => prev.filter(p => p.id !== patientId));
+      const newPatients = patients.filter(p => p.id !== patientId);
+      savePatients(newPatients);
     }
   };
 
@@ -134,7 +147,8 @@ export default function PatientManagement({ isOpen, onClose, user, onPatientSele
       ...newPatient,
       age: parseInt(newPatient.age)
     };
-    setPatients(prev => prev.map(p => p.id === editingPatient.id ? updatedPatient : p));
+    const newPatients = patients.map(p => p.id === editingPatient.id ? updatedPatient : p);
+    savePatients(newPatients);
     setNewPatient({ name: '', age: '', phone: '', email: '' });
     setValidationErrors({});
     setEditingPatient(null);
@@ -356,7 +370,8 @@ export default function PatientManagement({ isOpen, onClose, user, onPatientSele
                     <button
                       onClick={() => {
                         if (window.confirm(`Are you sure you want to remove ${selectedPatients.length} selected patients?`)) {
-                          setPatients(prev => prev.filter(p => !selectedPatients.includes(p.id)));
+                          const newPatients = patients.filter(p => !selectedPatients.includes(p.id));
+                          savePatients(newPatients);
                           setSelectedPatients([]);
                         }
                       }}
